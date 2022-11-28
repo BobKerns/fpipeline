@@ -1,2 +1,2 @@
-# fp-pipeline
-Simple Python but flexible pipelines based on the simplest of Functional Programing concepts.
+# fpipeline
+Functional Pipeline. Simple Python but flexible pipelines based on function composition.
