@@ -1,7 +1,4 @@
 name: To PyPI using Flit
-  uses: AsifArmanRahman/to-pypi-using-flit@v1
-
-#
 #
 # Controls when the workflow will run
 on:    
