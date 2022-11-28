@@ -1,0 +1,22 @@
+[build-system]
+requires = ["flit_core>=3.2"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "fp-pipeline"
+version = "0.0.1"
+authors = [
+  { name="BobKerns", email="rwk@acm.org" },
+]
+description = "A simple yet flexible pipeline package based on simple FP concepts."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/bobkerns/fp-pipeline"
+"Bug Tracker" = "https://github.com/bobkerns/fp-pipeline/issues"
