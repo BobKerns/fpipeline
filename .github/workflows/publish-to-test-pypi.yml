@@ -1,4 +1,4 @@
-name: To PyPI using Flit
+name: To Test PyPI using Flit
 #
 # Controls when the workflow will run
 on:    
