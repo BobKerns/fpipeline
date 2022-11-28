@@ -1,7 +1,7 @@
 name: To PyPI using Flit
 #
 # Controls when the workflow will run
-on:    
+on:
     # Workflow will run when a release has been published for the package
     release:
         types:
@@ -29,4 +29,4 @@ jobs:
             -   name: To PyPI using Flit
                 uses: AsifArmanRahman/to-pypi-using-flit@v1
                 with:
-                    password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+                    password: ${{ secrets.PYPI_API_TOKEN }}
