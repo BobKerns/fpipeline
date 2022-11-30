@@ -1,6 +1,6 @@
 """Functional Pipeline. A simple pipeline facility built on function composition.
 
-Our compositio operator is `pipeline`.
+Our composition operator is `pipeline`.
 """
 
 from __future__ import annotations
@@ -18,29 +18,18 @@ P = ParamSpec('P')
 class Step(Callable[[D], any], metaclass=ABCMeta):
     """An operation callable on the data context"""
 
-class StepFn(Callable[P, Step[D]], metaclass=ABCMeta):
-    """A function that returns a configured Step."""
-
-class ConfigurableStep(Callable[Concatenate[D, P], any], metaclass=ABCMeta):
-    """An operation callable on the data context, with extra arguments to configure"""
-
 class Condition(Callable[[D], bool], metaclass=ABCMeta):
     """A condition on the data context"""
 
-class ConditionFn(Callable[P, Condition[D]], metaclass=ABCMeta):
-    """A function that returns a configured Condition"""
-class ConfigurableCondition(Callable[Concatenate[D, P], bool], metaclass=ABCMeta):
-    """A condition on the data context, with additional arguments to configure"""
-
 ### Annotations
 
-def stepfn(fnx: ConfigurableStep[D, A]) -> StepFn[A, D]:
+def stepfn(fnx: Callable[Concatenate[D, P], any]) -> Callable[P, Step[D]]:
     """An annotation for defining step functions. All but the first argument are curried. """
     def step_fn(*args: P.args, **kwargs: P.kwargs) -> Step[D]:
         return curry(fnx, *args, **kwargs)
     return step_fn
 
-def conditionfn(fnx: ConfigurableCondition[D, A]) -> ConditionFn[A, D]:
+def conditionfn(fnx: Callable[Concatenate[D, P], bool]) -> Callable[P, Condition[D]]:
     """An annotation for defining step functions. All but the first argument are curried. """
     def condition_fn(*args: P.args, **kwargs: P.kwargs) -> Condition[D]:
         return curry(fnx, *args, **kwargs)
@@ -139,12 +128,12 @@ def variables(target: D):
 
 ### Currying support
 
-def curry(step_fn: ConfigurableStep[D],
+def curry(step_fn: Callable[Concatenate[D, P], any],
           *args,
           name: Optional[str] = None,
           store: Optional[AbstractVariable[D]] = None,
           **kwargs
-         ) -> Step:
+         ) -> Step[D]:
     """Configure a Step, currying all but the first argument."""
     if name is None:
         name = step_fn.__name__
