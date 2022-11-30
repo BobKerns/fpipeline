@@ -1,7 +1,7 @@
 name: To Test PyPI using Flit
 #
 # Controls when the workflow will run
-on:    
+on:
     # Workflow will run when a release has been published for the package
     release:
         types:
@@ -26,7 +26,7 @@ jobs:
             -   name: Set up Python 3.10
                 uses: actions/setup-python@v3
                 with:
-                    python-version: 3.9
+                    python-version: 3.10
                     cache: pip
 
             -   name: To PyPI using Flit
@@ -34,4 +34,3 @@ jobs:
                 with:
                     password: ${{ secrets.TEST_PYPI_API_TOKEN }}
                     repository-url: https://test.pypi.org/legacy/
-                    
