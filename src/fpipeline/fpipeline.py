@@ -117,6 +117,23 @@ class VariableContext(Generic[D]):
         self.variables.clear()
         del self.variables     # Future uses of this context will error.
 
+@stepfn
+def store(data: D, var: Variable[D, V], step:Step[any, V]) -> V:
+    """Store the result of the step in the supplied variable"""
+    var.value = step(data)
+    return var.value
+
+@stepfn
+def apply(_: D, expr: Callable[P, V], *args: P.args, **kwargs: P.kwargs) -> V:
+    """A step that applies a function to the supplied arguments and returns the values.
+    This is a stepfn, so pipeline variables can be supplied as arguments and be
+    evaluated before calling the function.
+
+    It's a StepFn, so it returns a Step that can be used anywhere steps (or conditions)
+    are allowed.
+    """
+    return expr(*args, **kwargs)
+
 @contextmanager
 def variables(target: D):
     """Returns a `VariableContext`, for use in a `with` statement."""
@@ -131,7 +148,6 @@ def variables(target: D):
 def curry(step_fn: Callable[Concatenate[D, P], any],
           *args,
           name: Optional[str] = None,
-          store: Optional[AbstractVariable[D]] = None,
           **kwargs
          ) -> Step[D]:
     """Configure a Step, currying all but the first argument."""
@@ -140,11 +156,9 @@ def curry(step_fn: Callable[Concatenate[D, P], any],
     def val(var: Union[Variable, any]):
         return var.value if isinstance(var, Variable) else var
     def step(data: D):
-        nonlocal val, args, kwargs, store
+        nonlocal val, args, kwargs
         args = [val(a) for a in args]
         value = step_fn(data, *args, **kwargs)
-        if store:
-            store.value = value
         return value
     step.__name__ = name
     return step
