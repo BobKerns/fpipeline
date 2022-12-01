@@ -1,8 +1,11 @@
 """ Simple Test Framework for notebook-based tests."""
 
 from dataclasses import dataclass
-from typing import Callable, cast
+from typing import Callable, cast, TypeVar, ParamSpec
 from IPython.display import display
+
+P = ParamSpec('P')
+V = TypeVar('V')
 
 @dataclass
 class Test:
@@ -41,6 +44,12 @@ class Test:
         """Execute the result value as a function"""
         try:
             return Test(self.name, cast(Callable, self.result)())
+        except Exception as ex: # pylint: disable=broad-except
+            return Test(self.name, ex)
+    def apply(self, *args: P.args, **kwargs: P.kwargs) -> V:
+        """Apply the fresult to the supplied arguments and return the result"""
+        try:
+            return Test(self.name, cast(Callable, self.result)(*args, **kwargs))
         except Exception as ex: # pylint: disable=broad-except
             return Test(self.name, ex)
     def is_exception(self):
