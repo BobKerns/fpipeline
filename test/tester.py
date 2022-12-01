@@ -49,7 +49,7 @@ class Test:
     def apply(self, *args: P.args, **kwargs: P.kwargs) -> V:
         """Apply the fresult to the supplied arguments and return the result"""
         try:
-            return Test(self.name, cast(Callable, self.result)(*args, **kwargs))
+            return Test(self.name, cast(Callable[P, V], self.result)(*args, **kwargs))
         except Exception as ex: # pylint: disable=broad-except
             return Test(self.name, ex)
     def is_exception(self):
