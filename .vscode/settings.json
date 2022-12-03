@@ -1,6 +1,9 @@
 {
-    "python.autoComplete.extraPaths": [],
+    "python.autoComplete.extraPaths": [
+        "test"
+    ],
     "python.analysis.extraPaths": [
         "test"
-    ]
+    ],
+    "python.linting.pylintPath": "test"
 }
