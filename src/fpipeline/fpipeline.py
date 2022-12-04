@@ -38,7 +38,7 @@ def conditionfn(fnx: Callable[Concatenate[D, P], bool]) -> Callable[P, Condition
 ### Pipeline Variables
 
 class AbstractVariable(Generic[T, V]):
-    """Abstract base for pipeline variables"""
+    """Abstract base for pipeline"""
     __name__ = property(repr)
     value: V
     def __call__(self, data: T) -> V:
@@ -51,12 +51,15 @@ class Variable(AbstractVariable[T, V]):
     def __init__(self, name: str):
         self.name = name
     def __repr__(self):
-        return f"<{self.name}={repr(self.value)}>"
+        if hasattr(self, 'value'):
+            return f"<{self.name}={repr(self.value)}>"
+        else:
+            return f"<{self.name}=???>"
 
 @dataclass
 class Attribute(AbstractVariable[T, V]):
     """Pipeline variable backed by an attribute on the data context"""
-    target: T
+    target: T = field(repr=False)
     name: str
 
     def __get(self):
@@ -85,20 +88,25 @@ class VariableContext(Generic[D]):
     """Context for pipeline variables"""
     target: D
     variables: dict[str, AbstractVariable[D]] = field(default_factory=dict)
+    closed: bool = False
 
     def variable(self, *names: list[str]) -> Variable[D]:
         """Obtain one or more variables"""
         def find(name):
-            var = self.variables.get(name)
-            if var is None:
+            if not name in self.variables:
                 var = Variable(name)
                 self.variables[name] = var
-            return var
-        return tuple(*(find(name) for name in names))
+            return self.variables[name]
+        return [*(find(name) for name in names)]
 
     def attribute(self, *names: list[str]) -> Attribute[D]:
         """Obtain one or more attribute references"""
-        return tuple(*(Attribute(self.target, name) for name in names))
+        def find(name):
+            if not name in self.variables:
+                var = Attribute(self.target, name)
+                self.variables[name] = var
+            return self.variables[name]
+        return [*(find(name) for name in names)]
 
     def pipeline(self, *steps: list[Step[T]]) -> Step[T]:
         """Create a pipeline in this variable context"""
@@ -113,9 +121,10 @@ class VariableContext(Generic[D]):
     def close(self):
         """On closing the context, make using the variables an error."""
         for (_, var) in self.variables.items():
-            delattr(var, 'value')  # future references to .value will error.
+            if hasattr(var, 'value'):
+                delattr(var, 'value')  # future references to .value will error.
         self.variables.clear()
-        del self.variables     # Future uses of this context will error.
+        self.closed = True     # Future uses of this context will error.
 
 @stepfn
 def store(data: D, var: Variable[D, V], step:Step[any, V]) -> V:

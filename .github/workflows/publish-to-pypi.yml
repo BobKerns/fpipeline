@@ -5,7 +5,7 @@ on:
     # Workflow will run when a release has been published for the package
     release:
         types:
-            - released
+            - published
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:

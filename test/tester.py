@@ -1,10 +1,11 @@
 """ Simple Test Framework for notebook-based tests."""
 
 from dataclasses import dataclass
-from typing import Callable, cast, TypeVar, ParamSpec
+from typing import Callable, cast, TypeVar, ParamSpec, Concatenate
 from abc import ABC, abstractmethod
 
 P = ParamSpec('P')
+T = ParamSpec('T')
 V = TypeVar('V')
 
 class TestReporter(ABC):
@@ -84,6 +85,12 @@ class Test:
         """Apply the fresult to the supplied arguments and return the result"""
         try:
             return Test(self.name, cast(Callable[P, V], self.result)(*args, **kwargs))
+        except Exception as ex: # pylint: disable=broad-except
+            return Test(self.name, ex)
+    def call(self, fnctn: Callable[Concatenate[any, P], V], *args: P.args, **kwargs: P.kwargs):
+        """Call the supplied function and substitute the result."""
+        try:
+            return Test(self.name, fnctn(self.result, *args, **kwargs))
         except Exception as ex: # pylint: disable=broad-except
             return Test(self.name, ex)
     def is_exception(self):
