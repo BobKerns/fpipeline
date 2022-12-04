@@ -53,6 +53,9 @@ class Test:
     def _check(self, pred: Callable[[any, any], bool], value: any):
         if self.reported:
             return # We've already reported the error.
+        if self.error:
+            TEST_REPORTER.error(self.name, self.result)
+            return
         success: bool = False
         try:
             success = bool(pred(self.result, value)) ^ self.negated

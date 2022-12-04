@@ -29,7 +29,7 @@ class NotebookTestReporter(TestReporter):
         """Handle errors while testing"""
         self.errors += 1
         self.display(
-            'color:blue; background-color: rgb(255,242,242)'
+            'color:blue; background-color: rgb(255,242,242)',
             '❌❌❌',
             name,
             str(result)
