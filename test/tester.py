@@ -56,7 +56,7 @@ class Test:
         if success:
             TEST_REPORTER.success(self.name, self.result)
         else:
-            TEST_REPORTER.failure(self.name)
+            TEST_REPORTER.failure(self.name, self.result)
     def equals(self, value: any):
         """Test if the result is equal to the supplied value"""
         self._check(lambda a, b: a == b, value)

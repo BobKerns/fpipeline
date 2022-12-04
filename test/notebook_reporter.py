@@ -5,23 +5,37 @@ from tester import TestReporter
 
 class NotebookTestReporter(TestReporter):
     """Test reporter for notebook tests"""
+    results: list[tuple] = list()
+    successes: int = 0
+    failures: int = 0
+    errors: int = 0
+
+    def display(self, style: str, token: str, name: str, msg: str):
+        html = f"<span style='{style}'>{token} {name}: {msg}</span>"
+        self.results.append(html)
+        display({"text/html": html}, raw=True)
 
     def success(self, name: str, _: any):
         """Handle test success"""
-        style = 'color:green'
-        display(
-            {"text/html": f"<span style='{style}'>✅: {name}</span>"}, raw=True)
+        self.successes += 1
+        self.display("color:green", '✅', name, 'OK')
 
     def failure(self, name: str, _: any):
         """Handle test failure"""
-        style = 'color:red'
-        display(
-            {"text/html": f"<span style='{style}'>❌: {name}</span>"}, raw=True)
+        self.failures += 1
+        self.display('color:red', '❌', name, 'Failed')
 
     def error(self, name: str, result: any):
         """Handle errors while testing"""
-        style = 'color:blue; background-color: rgb(255,242,242)'
-        display(
-            {"text/html":
-            f"<span style='{style}'>❌❌❌: {name} {result}</span>"},
-            raw=True)
+        self.errors += 1
+        self.display(
+            'color:blue; background-color: rgb(255,242,242)'
+            '❌❌❌',
+            name,
+            str(result)
+        )
+
+    def report(self):
+        listing = "<br>".join(self.results)
+        summary = f"{self.successes} successes, {self.failures} failures, {self.errors} errors"
+        display({'text/html': f"{listing}<br>{summary}"}, raw=True)
