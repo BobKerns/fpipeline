@@ -47,17 +47,24 @@ class Test:
     name: str
     result: any
     negated: bool = False
+    # Errors propagate
+    error: bool = False
+    reported: bool = False
     def _check(self, pred: Callable[[any, any], bool], value: any):
+        if self.reported:
+            return # We've already reported the error.
         success: bool = False
         try:
             success = bool(pred(self.result, value)) ^ self.negated
         except Exception as ex: # pylint: disable=broad-except
             TEST_REPORTER.error(self.name, ex)
+            self.reported = True
             return
         if success:
             TEST_REPORTER.success(self.name, self.result)
         else:
             TEST_REPORTER.failure(self.name, self.result)
+        self.reported = True
     def equals(self, value: any):
         """Test if the result is equal to the supplied value"""
         self._check(lambda a, b: a == b, value)
@@ -73,29 +80,46 @@ class Test:
     @property
     def negate(self):
         """Negate the test"""
-        return Test(self.name, self.result, negated=not self.negated)
+        return Test(self.name, self.result, negated=not self.negated, error=self.error, reported=self.reported)
     @property
     def exec(self):
         """Execute the result value as a function"""
+        if self.error:
+            return self
         try:
             return Test(self.name, cast(Callable, self.result)())
         except Exception as ex: # pylint: disable=broad-except
-            return Test(self.name, ex)
+            return Test(self.name, ex, error=True)
     def apply(self, *args: P.args, **kwargs: P.kwargs) -> V:
         """Apply the fresult to the supplied arguments and return the result"""
+        if self.error:
+            return self
         try:
-            return Test(self.name, cast(Callable[P, V], self.result)(*args, **kwargs))
+            return Test(
+                self.name,
+                cast(Callable[P, V], self.result)(*args, **kwargs)
+            )
         except Exception as ex: # pylint: disable=broad-except
-            return Test(self.name, ex)
+            return Test(self.name, ex, error=True, negated=self.negated)
     def call(self, fnctn: Callable[Concatenate[any, P], V], *args: P.args, **kwargs: P.kwargs):
         """Call the supplied function and substitute the result."""
+        if self.error:
+            return self
         try:
-            return Test(self.name, fnctn(self.result, *args, **kwargs))
+            return Test(self.name, fnctn(self.result, *args, **kwargs), negated=self.negated)
         except Exception as ex: # pylint: disable=broad-except
-            return Test(self.name, ex)
+            return Test(self.name, ex, error=True)
     def is_exception(self):
         """Test if the result is an exception"""
         self._check(isinstance, Exception)
     def isinstance(self, cls):
         """Test if the result is an instance of the specified class"""
         self._check(isinstance, cls)
+    def attribute(self, name: str):
+        """Extract the attribute"""
+        if self.error:
+            return self
+        try:
+            return Test(self.name, getattr(self.result, name, negated=self.negated))
+        except Exception as ex:
+            return Test(self.name, ex, error=True)
