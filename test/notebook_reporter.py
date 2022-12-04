@@ -5,14 +5,14 @@ from tester import TestReporter
 
 class NotebookTestReporter(TestReporter):
     """Test reporter for notebook tests"""
-    results: list[tuple] = list()
+    results: dict[str,tuple] = dict()
     successes: int = 0
     failures: int = 0
     errors: int = 0
 
     def display(self, style: str, token: str, name: str, msg: str):
         html = f"<span style='{style}'>{token} {name}: {msg}</span>"
-        self.results.append(html)
+        self.results[name] = html
         display({"text/html": html}, raw=True)
 
     def success(self, name: str, _: any):
@@ -36,6 +36,6 @@ class NotebookTestReporter(TestReporter):
         )
 
     def report(self):
-        listing = "<br>".join(self.results)
+        listing = "<br>".join(self.results.values())
         summary = f"{self.successes} successes, {self.failures} failures, {self.errors} errors"
         display({'text/html': f"{listing}<br>{summary}"}, raw=True)
