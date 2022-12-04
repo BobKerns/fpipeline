@@ -181,7 +181,7 @@ def pipeline(*steps: list[Step[D]], name: Optional[str] = None) -> Step[D]:
 
 ### Condition Modifiers
 
-def not_(cond_: Condition[D], name: Optional[str]) -> Condition[D]:
+def not_(cond_: Condition[D], name: Optional[str] = None) -> Condition[D]:
     """Negate a Condition"""
     if name is None:
         name = cond_.__name__
@@ -191,7 +191,7 @@ def not_(cond_: Condition[D], name: Optional[str]) -> Condition[D]:
     negator.__name__ = name
     return negator
 
-def or_(conditions: list[Condition[D]], name: Optional[str] = None) -> Condition[D]:
+def or_(*conditions: list[Condition[D]], name: Optional[str] = None) -> Condition[D]:
     """Combine conditions with OR"""
     if name is None:
         name = '|'.join((c.__name__ for c in conditions))
@@ -204,7 +204,7 @@ def or_(conditions: list[Condition[D]], name: Optional[str] = None) -> Condition
     cond.__name__ = name
     return cond
 
-def and_(conditions: list[Condition[D]], name: Optional[str] = None) -> Condition[D]:
+def and_(*conditions: list[Condition[D]], name: Optional[str] = None) -> Condition[D]:
     """Combine conditions with AND"""
     if name is None:
         name = '&'.join((c.__name__ for c in conditions))
