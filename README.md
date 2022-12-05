@@ -16,7 +16,7 @@ Often, it will be an object representing the data the
 pipeline is to operate on. It can also be contained in
 an object or `dict` along with various metadata.
 
-## Step[D,V]
+## _type_ Step[D,V]
 
 A `Step` type hint is defined to be:
 
@@ -27,33 +27,32 @@ Step = Callable[[D],V]
 Where `D` and `V` are type variables,
 
 Steps taking only a single argument would seem very
-limiting. But we have a solution! `Step` is defined to
-be `Callable[[CTX], V].
+limiting. But we have a solution!
 
-So we transform this:
+We transform this:
 
 ```python
-def my_step(CTX, A, B, C) -> V:
+@stepfn
+def my_step(ctx; CTX, a; A, b: B, c: C) -> V:
 ```
 
 into:
 
 ```python
-def my_step(A, B, C) -> Step:
+def my_step(a: A, b: B, c: C) -> Step[CTX,V]:
 ```
 
-or
+or more informally
 
 ```python
-def my_step(A, B, C) -> (CTX) -> V
+my_step(A, B, C) -> (CTX) -> V
 ```
 
 That is, we supply everything _except_ the first
 argument, then apply the context parameter for
 each data value processed by the pipeline.
 
-It might seem that this limits us to constant values.
-However, the use of
+It might seem that this limits us to constant values. However, the use of
 [_pipeline variables_](#pipeline-variables) allow
 different values to be injected at each execution.
 
@@ -61,11 +60,12 @@ Using a simple protocol based on single-argument functions allows us to use them
 
 ## Pipeline variables
 
-To allow passing values between pipeline `Step`s in a flexible way, we provide two forms of _pipeline variables_, that allow capture of the return value of a `Step`, and then supply it as an argument to a `StepFn`, all handled by the behind the scenes.
+To allow passing values between pipeline [`Step`s](#type-stepdv) in a flexible way, we provide two forms of _pipeline variables_, that allow capture of the return value of a [`Step`](#stepdv), and then supply it as an argument to a later step
+function, all handled by the behind the scenes.
 
 Pipeline variables will hold any value.
 
-A pipeline variable is also callable as a `Step`, allowing them to be used in a
+A pipeline variable is also callable as a [`Step`](#steps), allowing them to be used in a
 pipeline to provide a return value for the pipeline.
 
 Usage goes like this:
@@ -138,14 +138,14 @@ A pipeline that executes every step on every input would severely limit flexibil
 `fpipeline` provides for branching, allowing steps to be skipped where
 they don't apply, or entire different flows be selected.
 
-The primary means is via the `if_` step.
+The primary means is via the [`if_`](#stepfn-if_cond-then-else) step function.
 
 > These functions have a '_' suffix to avoid conflicts
 while maintaining readability. They are not in any
 sense private; they ae a fully public part of the
 interface.
 
-### `if_`(_cond_, _then_, _else_)
+### _`@stepfn`_ `if_`(_cond_, _then_, _else_)
 
 _cond_ is a `Condition`, which is like a `Step` except the return value is a `bool`. It should be defined using the
 `@conditionfn` decorator in the same way as
@@ -155,17 +155,17 @@ _then_ and _else_ are steps (or pipelines),
 executed according to the value of _cond_.
 They may be omitted or supplied as None.
 
-### `not_`(_cond_)
+### _`@condfn`_ `not_`(_cond_)
 
 `not_` returns a new `Condition` with the opposite sense.
 
-### `and_`(`*`_conds_)
+### _`@condfn`_ `and_`(`*`_conds_)
 
 `and_` returns a new `Condition` that returns
 `False` if any of its arguments return `False`,
 and `True` otherwise.
 
-### `or_`(`*`_conds_)
+### _`@condfn`_ `or_`(`*`_conds_)
 
 `or_` returns a new `Condition` that returns
 `True` if any of its arguements return `True`,
