@@ -37,15 +37,17 @@ class NotebookTestReporter(TestReporter):
 
     def report(self):
         results = list(self.results.values())
-        l = int((len(results) + 1)/ 2)
+        l = int((len(results) + 2)/ 3)
+        m = int((2 * len(results) + 2)/ 3)
         left = results[0:l]
-        right = results[l:]
+        mid = results[l:m]
+        right = results[m:]
         def mkrow(p)-> str:
-            a, b = p
+            a, b, c = p
             def cell(content):
                 return f"<td style='text-align:left'>{content}</td>"
-            return f"<tr>{cell(a)}{cell(b)}</tr>"
-        rows = "\n".join(map(mkrow, zip(left, (*right, "—"))))
+            return f"<tr>{cell(a)}{cell(b)}{cell(c)}</tr>"
+        rows = "\n".join(map(mkrow, zip(left, (*mid, "—"), (*right, "—"))))
         table = f"<table>{rows}</table>"
         summary = f"{self.successes} successes, {self.failures} failures, {self.errors} errors"
         display({'text/html': f"{table}<br>{summary}"}, raw=True)
