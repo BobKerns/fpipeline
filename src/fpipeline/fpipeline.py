@@ -175,6 +175,7 @@ def curry(step_fn: Callable[Concatenate[D, P], any],
         value = step_fn(data, *args, **kwargs)
         if isinstance(value, AbstractVariable):
             raise TypeError(f"Pipeline variable {value.name} being returned.")
+        return value
     step.__name__ = name
     return step
 
