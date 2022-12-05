@@ -167,8 +167,8 @@ def curry(step_fn: Callable[Concatenate[D, P], any],
     """Configure a Step, currying all but the first argument."""
     if name is None:
         name = step_fn.__name__
-    def val(var: Union[Variable, any]):
-        return var.value if isinstance(var, Variable) else var
+    def val(var: Union[AbstractVariable, any]):
+        return var.value if isinstance(var, AbstractVariable) else var
     def step(data: D):
         nonlocal val, args, kwargs
         args = [val(a) for a in args]
@@ -189,6 +189,8 @@ def pipeline(*steps: list[Step[D]], name: Optional[str] = None) -> Step[D]:
         result = None
         for fun in steps:
             result = fun(data)
+        if isinstance(result, AbstractVariable):
+            return result.value
         return result
     run_pipeline.__name__ = name
     return run_pipeline
