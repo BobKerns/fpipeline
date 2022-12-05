@@ -173,7 +173,7 @@ def curry(step_fn: Callable[Concatenate[D, P], any],
         nonlocal val, args, kwargs
         args = [val(a) for a in args]
         value = step_fn(data, *args, **kwargs)
-        return value
+        return val(value)
     step.__name__ = name
     return step
 
