@@ -173,7 +173,8 @@ def curry(step_fn: Callable[Concatenate[D, P], any],
         nonlocal val, args, kwargs
         args = [val(a) for a in args]
         value = step_fn(data, *args, **kwargs)
-        return val(value)
+        if isinstance(value, AbstractVariable):
+            raise TypeError(f"Pipeline variable {value.name} being returned.")
     step.__name__ = name
     return step
 
@@ -190,7 +191,7 @@ def pipeline(*steps: list[Step[D]], name: Optional[str] = None) -> Step[D]:
         for fun in steps:
             result = fun(data)
         if isinstance(result, AbstractVariable):
-            return result.value
+            raise TypeError(f"Pipeline variable {value.name} being returned.")
         return result
     run_pipeline.__name__ = name
     return run_pipeline
