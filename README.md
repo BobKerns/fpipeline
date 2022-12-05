@@ -81,7 +81,7 @@ def writeAssetStep(data: Data, asset: Asset, path: str) -> Asset:
 # The output directory is configured as an argument
 # when creating the pipeline.
 @stepfn
-def merge(data: Data, outdir: str) -> Step:
+def merge(data: Data, outdir: str) -> Asset:
     with variables() as vars:
         # declare the pipeline variables that we need
         src1, src2 = vars.attribute('src1', 'src2')
