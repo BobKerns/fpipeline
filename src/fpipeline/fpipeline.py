@@ -4,7 +4,7 @@ Our composition operator is `pipeline`.
 """
 
 from __future__ import annotations
-from typing import Callable, Union, TypeVar, Generic, ParamSpec, Concatenate, Optional
+from typing import Callable, Union, TypeVar, Generic, ParamSpec, Concatenate, Optional, ClassVar
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from abc import ABCMeta
@@ -72,7 +72,8 @@ class Attribute(AbstractVariable[T, V]):
         # We leave attribute values behind after we exit scope
         # But we drop the ability to acccess them
         delattr(self, 'target')
-    value: V = property(__get, __set, __del)
+
+    value: ClassVar[V] = property(__get, __set, __del)
 
     def __repr__(self):
         if hasattr(self, 'target'):
@@ -97,6 +98,8 @@ class VariableContext(Generic[D]):
                 var = Variable(name)
                 self.variables[name] = var
             return self.variables[name]
+        if len(names) == 1:
+            return find(names[0])
         return [*(find(name) for name in names)]
 
     def attribute(self, *names: list[str]) -> Attribute[D]:
@@ -106,6 +109,8 @@ class VariableContext(Generic[D]):
                 var = Attribute(self.target, name)
                 self.variables[name] = var
             return self.variables[name]
+        if len(names) == 1:
+            return find(names[0])
         return [*(find(name) for name in names)]
 
     def pipeline(self, *steps: list[Step[T]]) -> Step[T]:
