@@ -124,6 +124,8 @@ class Test:
         if self.error:
             return self
         try:
-            return Test(self.name, getattr(self.result, name, negated=self.negated))
+            if isinstance(self.result, dict):
+                return Test(self.name, self.result[name], negated=self.negated)
+            return Test(self.name, getattr(self.result, name), negated=self.negated)
         except Exception as ex:
             return Test(self.name, ex, error=True)

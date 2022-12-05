@@ -8,6 +8,7 @@ from typing import Callable, Union, TypeVar, Generic, ParamSpec, Concatenate, Op
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from abc import ABCMeta
+from collections import namedtuple
 
 D = TypeVar('D')  # Data
 T = TypeVar('T')  # "Target"
@@ -63,10 +64,17 @@ class Attribute(AbstractVariable[T, V]):
     name: str
 
     def __get(self):
+        if isinstance(self.target, dict):
+            return self.target[self.name]
         return getattr(self.target, self.name)
 
     def __set(self, value: V):
-        setattr(self.target, self.name, value)
+        value = eval_(value)
+        if isinstance(self.target, dict):
+            self.target[self.name] = value
+        else:
+            setattr(self.target, self.name, value)
+        return value
 
     def __del(self):
         # We leave attribute values behind after we exit scope
@@ -131,11 +139,14 @@ class VariableContext(Generic[D]):
         self.variables.clear()
         self.closed = True     # Future uses of this context will error.
 
-@stepfn
-def store(data: D, var: Variable[D, V], step:Step[any, V]) -> V:
+# Would be a @stepfn, but we have to be able to receive the Variable unchanged.
+# A @stepfn receives pipeline variable values, never variables
+def store(var: AbstractVariable[D, V], step:Step[any, V]) -> V:
     """Store the result of the step in the supplied variable"""
-    var.value = step(data)
-    return var.value
+    def store_(data: D):
+        var.value = step(data)
+        return var.value
+    return store_
 
 @stepfn
 def apply(_: D, expr: Callable[P, V], *args: P.args, **kwargs: P.kwargs) -> V:
@@ -157,6 +168,24 @@ def variables(target: D):
     finally:
         vctx.close()
 
+def eval_(val: Union[AbstractVariable, any], /, depth=10):
+    """Evaluate a pipeline variable, or any list, tuple, or dict that may contain them,
+    up to _depth_ (default 10) depth"""
+    if isinstance(val, AbstractVariable):
+        return eval_(val.value, depth=depth-1)
+    if depth == 0:
+        return val
+    if isinstance(val, list):
+        return [eval_(v, depth=depth-1) for v in val]
+    t = type(val)
+    if hasattr(t, '_make'):
+        return t._make((eval_(v, depth=depth-1) for v in val))
+    if isinstance(val, tuple):
+        return tuple((eval_(v, depth=depth-1) for v in val))
+    if isinstance(val, dict):
+        return {k:eval_(v, depth=depth-1) for (k, v) in val.items()}
+    return val
+
 ### Currying support
 
 def curry(step_fn: Callable[Concatenate[D, P], any],
@@ -167,11 +196,9 @@ def curry(step_fn: Callable[Concatenate[D, P], any],
     """Configure a Step, currying all but the first argument."""
     if name is None:
         name = step_fn.__name__
-    def val(var: Union[AbstractVariable, any]):
-        return var.value if isinstance(var, AbstractVariable) else var
     def step(data: D):
-        nonlocal val, args, kwargs
-        args = [val(a) for a in args]
+        nonlocal args, kwargs
+        args = [eval_(a) for a in args]
         value = step_fn(data, *args, **kwargs)
         if isinstance(value, AbstractVariable):
             raise TypeError(f"Pipeline variable {value.name} being returned.")
@@ -191,9 +218,7 @@ def pipeline(*steps: list[Step[D]], name: Optional[str] = None) -> Step[D]:
         result = None
         for fun in steps:
             result = fun(data)
-        if isinstance(result, AbstractVariable):
-            raise TypeError(f"Pipeline variable {value.name} being returned.")
-        return result
+        return eval_(result)
     run_pipeline.__name__ = name
     return run_pipeline
 
@@ -260,3 +285,17 @@ def if_(
             return None
     step.__name__ = name
     return step
+
+### Utility Steps
+
+@stepfn
+def list_(data: D, *args):
+    return list(map(eval_, args))
+
+@stepfn
+def dict_(data: D, **kwargs):
+    return {k:eval_(v) for (k, v) in kwargs}
+
+@stepfn
+def tuple_(data: D, *args):
+    return tuple(map(eval_, args))
