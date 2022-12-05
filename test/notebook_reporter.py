@@ -10,33 +10,53 @@ class NotebookTestReporter(TestReporter):
     failures: int = 0
     errors: int = 0
 
-    def display(self, style: str, token: str, name: str, msg: str) -> int:
-        """Returns how many to add to the count of this kind of result (0 or 1)."""
+    def _display(self, type: int, style: str, token: str, name: str, msg: str) -> int:
+        """Returns how many to add to the count of each kind of result (0 or 1)."""
         html = f"<span style='{style}'>{token} {name}: {msg}</span>"
-        count = 1 if not name in self.results else 0
-        self.results[name] = html
+        s_count, f_count, e_count = (0, 0, 0)
+        if name in self.results:
+            (old_type, old_heml) = self.results[name]
+            if old_type == 0:
+                s_count = -1
+            elif old_type == 1:
+                f_count = -1
+            elif old_type == 2:
+                e_count = -1
+        if type == 0:
+            s_count += 1
+        elif type == 1:
+            f_count += 1
+        elif type == 2:
+            e_count += 1
+        self.results[name] = (type, html)
         display({"text/html": html}, raw=True)
-        return count
+        return (s_count, f_count, e_count)
+
+    def update_count(self, s, f, e):
+        self.successes += s
+        self.failures += f
+        self.errors += e
 
     def success(self, name: str, _: any):
         """Handle test success"""
-        self.successes += self.display("color:green", '✅', name, 'OK')
+        self.update_count(*self._display(0, "color:green", '✅', name, 'OK'))
 
     def failure(self, name: str, _: any):
         """Handle test failure"""
-        self.failures += self.display('color:red', '❌', name, 'Failed')
+        self.update_count(*self._display(1, 'color:red', '❌', name, 'Failed'))
 
     def error(self, name: str, result: any):
         """Handle errors while testing"""
-        self.errors += self.display(
+        self.update_count(*self._display(
+            2,
             'color:blue; background-color: rgb(255,242,242)',
             '❌❌❌',
             name,
             str(result)
-        )
+        ))
 
     def report(self):
-        results = list(self.results.values())
+        results = list(map(lambda i: i[1], self.results.values()))
         l = int((len(results) + 2)/ 3)
         m = int((2 * len(results) + 2)/ 3)
         left = results[0:l]
