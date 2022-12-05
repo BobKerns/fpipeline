@@ -16,6 +16,16 @@ Often, it will be an object representing the data the
 pipeline is to operate on. It can also be contained in
 an object or `dict` along with various metadata.
 
+## Step[D,V]
+
+A `Step` type hint is defined to be:
+
+```python
+Step = Callable[[D],V]
+```
+
+Where `D` and `V` are type variables,
+
 Steps taking only a single argument would seem very
 limiting. But we have a solution! `Step` is defined to
 be `Callable[[CTX], V].
@@ -96,7 +106,7 @@ def merge(data: Data, outdir: str) -> Asset:
         )(data)
 ```
 
-`merge` can now be invoked by omitting the _data_ argument, giving a function of one
+- [ ] `merge` can now be invoked by omitting the _data_ argument, giving a function of one
 argument (_data_).
 
 ```python
@@ -109,3 +119,54 @@ merge_and_store = merge(outdir='/data/assets/merged')
 # Perform the operation
 merged = merge_and_store(pair1)
 ```
+
+If we have two directories of files to be merged, this will take them
+pairwise and feed each pair through the
+pipeline.
+
+```python
+asset1 = glob.glob('/data/assets1/*.asset')
+asset2 = glob.glob('/data/assets2/*.asset')
+results = list(map(merge_and_store,
+                 ({'asset1': a1, 'asset2': a2} for (a1, a2) in zip(assets1, assets2))))
+```
+
+## Conditional execution
+
+A pipeline that executes every step on every input would severely limit flexibility.
+
+`fpipeline` provides for branching, allowing steps to be skipped where
+they don't apply, or entire different flows be selected.
+
+The primary means is via the `if_` step.
+
+> These functions have a '_' suffix to avoid conflicts
+while maintaining readability. They are not in any
+sense private; they ae a fully public part of the
+interface.
+
+### `if_`(_cond_, _then_, _else_)
+
+_cond_ is a `Condition`, which is like a `Step` except the return value is a `bool`. It should be defined using the
+`@conditionfn` decorator in the same way as
+`@stepfn` is used for step functions.
+
+_then_ and _else_ are steps (or pipelines),
+executed according to the value of _cond_.
+They may be omitted or supplied as None.
+
+### `not_`(_cond_)
+
+`not_` returns a new `Condition` with the opposite sense.
+
+### `and_`(`*`_conds_)
+
+`and_` returns a new `Condition` that returns
+`False` if any of its arguments return `False`,
+and `True` otherwise.
+
+### `or_`(`*`_conds_)
+
+`or_` returns a new `Condition` that returns
+`True` if any of its arguements return `True`,
+and `False` otherwise.
