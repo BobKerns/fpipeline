@@ -10,25 +10,25 @@ class NotebookTestReporter(TestReporter):
     failures: int = 0
     errors: int = 0
 
-    def display(self, style: str, token: str, name: str, msg: str):
+    def display(self, style: str, token: str, name: str, msg: str) -> int:
+        """Returns how many to add to the count of this kind of result (0 or 1)."""
         html = f"<span style='{style}'>{token} {name}: {msg}</span>"
+        count = 1 if not name in self.results else 0
         self.results[name] = html
         display({"text/html": html}, raw=True)
+        return count
 
     def success(self, name: str, _: any):
         """Handle test success"""
-        self.successes += 1
-        self.display("color:green", '✅', name, 'OK')
+        self.successes += self.display("color:green", '✅', name, 'OK')
 
     def failure(self, name: str, _: any):
         """Handle test failure"""
-        self.failures += 1
-        self.display('color:red', '❌', name, 'Failed')
+        self.failures += self.display('color:red', '❌', name, 'Failed')
 
     def error(self, name: str, result: any):
         """Handle errors while testing"""
-        self.errors += 1
-        self.display(
+        self.errors += self.display(
             'color:blue; background-color: rgb(255,242,242)',
             '❌❌❌',
             name,
