@@ -44,7 +44,7 @@ each data value processed by the pipeline.
 
 It might seem that this limits us to constant values.
 However, the use of
-[_pipeline variables_](#Pipeline_variables) allow
+[_pipeline variables_](#pipeline-variables) allow
 different values to be injected at each execution.
 
 Using a simple protocol based on single-argument functions allows us to use them as building blocks, to combine them into entire pipelines, and to combine pipelines into larger pipelines, all following the same protocol.
@@ -77,6 +77,9 @@ def writeAssetStep(data: Data, asset: Asset, path: str) -> Asset:
 
 # a `StepFn` (a pipeline is a `Step`) that takes two src paths to assets,
 # merges them, stores the result in data.result, and writes it to a file.
+# The asset paths are provided per-invocation in the context
+# The output directory is configured as an argument
+# when creating the pipeline.
 @stepfn
 def merge(data: Data, outdir: str) -> Step:
     with variables() as vars:
@@ -85,9 +88,9 @@ def merge(data: Data, outdir: str) -> Step:
         asset1 = vars.variable('asset1', 'asset2')
         result = vars.variable('result') # stors in data.result
         return vars.pipeline(
-            readAssetStep(src2, store=asset2),
-            readAssetStep(src1, store=asset1),
-            mergeAssetsStep(asset1, asset2, store=result),
+            store(asset2, readAssetStep(src2)),
+            store(asset1, readAssetStep(src1),
+            store(result, mergeAssetsStep(asset1, asset2),
             writeAssetStep(result, outdir),
             result
         )(data)
