@@ -50,18 +50,19 @@ class Test:
     # Errors propagate
     error: bool = False
     reported: bool = False
-    def _check(self, pred: Callable[[any, any], bool], value: any):
+    def _check(self, pred: Callable[[any, any], bool], value: any, /, allow_error=False):
         if self.reported:
             return # We've already reported the error.
-        if self.error:
+        if self.error and not allow_error:
+            self.reported = True
             TEST_REPORTER.error(self.name, self.result)
             return
         success: bool = False
         try:
             success = bool(pred(self.result, value)) ^ self.negated
         except Exception as ex: # pylint: disable=broad-except
-            TEST_REPORTER.error(self.name, ex)
             self.reported = True
+            TEST_REPORTER.error(self.name, ex)
             return
         if success:
             TEST_REPORTER.success(self.name, self.result)
@@ -112,9 +113,9 @@ class Test:
             return Test(self.name, fnctn(self.result, *args, **kwargs), negated=self.negated)
         except Exception as ex: # pylint: disable=broad-except
             return Test(self.name, ex, error=True)
-    def is_exception(self):
+    def is_exception(self, ex=Exception):
         """Test if the result is an exception"""
-        self._check(isinstance, Exception)
+        self._check(isinstance, ex, allow_error=True)
     def isinstance(self, cls):
         """Test if the result is an instance of the specified class"""
         self._check(isinstance, cls)
