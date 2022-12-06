@@ -129,3 +129,9 @@ class Test:
             return Test(self.name, getattr(self.result, name), negated=self.negated)
         except Exception as ex:
             return Test(self.name, ex, error=True)
+    @property
+    def raise_exception(self):
+        """For debugging, raise any exception"""
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self

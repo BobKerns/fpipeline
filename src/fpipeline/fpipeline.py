@@ -69,7 +69,7 @@ class Attribute(AbstractVariable[T, V]):
         return getattr(self.target, self.name)
 
     def __set(self, value: V):
-        value = eval_(value)
+        value = eval_(self.target, value)
         if isinstance(self.target, dict):
             self.target[self.name] = value
         else:
@@ -122,14 +122,8 @@ class VariableContext(Generic[D]):
         return [*(find(name) for name in names)]
 
     def pipeline(self, *steps: list[Step[T]]) -> Step[T]:
-        """Create a pipeline in this variable context"""
-        inner = pipeline(*steps)
-        def outer(data: D) -> any:
-            try:
-                return inner(data)
-            finally:
-                self.close()
-        return outer
+        """Create and run a pipeline in this variable context"""
+        return pipeline(*steps)(self.target)
 
     def close(self):
         """On closing the context, make using the variables an error."""
@@ -144,20 +138,9 @@ class VariableContext(Generic[D]):
 def store(var: AbstractVariable[D, V], step:Step[any, V]) -> V:
     """Store the result of the step in the supplied variable"""
     def store_(data: D):
-        var.value = step(data)
+        var.value = eval_(data, step(data))
         return var.value
     return store_
-
-@stepfn
-def apply(_: D, expr: Callable[P, V], *args: P.args, **kwargs: P.kwargs) -> V:
-    """A step that applies a function to the supplied arguments and returns the values.
-    This is a stepfn, so pipeline variables can be supplied as arguments and be
-    evaluated before calling the function.
-
-    It's a StepFn, so it returns a Step that can be used anywhere steps (or conditions)
-    are allowed.
-    """
-    return expr(*args, **kwargs)
 
 @contextmanager
 def variables(target: D):
@@ -168,22 +151,24 @@ def variables(target: D):
     finally:
         vctx.close()
 
-def eval_(val: Union[AbstractVariable, any], /, depth=10):
+def eval_(ctx: D, val: Union[AbstractVariable, any], /, depth=10):
     """Evaluate a pipeline variable, or any list, tuple, or dict that may contain them,
     up to _depth_ (default 10) depth"""
     if isinstance(val, AbstractVariable):
-        return eval_(val.value, depth=depth-1)
+        return eval_(ctx, val.value, depth=depth-1)
     if depth == 0:
         return val
     if isinstance(val, list):
-        return [eval_(v, depth=depth-1) for v in val]
+        return [eval_(ctx, v, depth=depth-1) for v in val]
     t = type(val)
     if hasattr(t, '_make'):
-        return t._make((eval_(v, depth=depth-1) for v in val))
+        return t._make((eval_(ctx, v, depth=depth-1) for v in val))
     if isinstance(val, tuple):
-        return tuple((eval_(v, depth=depth-1) for v in val))
+        return tuple((eval_(ctx, v, depth=depth-1) for v in val))
     if isinstance(val, dict):
-        return {k:eval_(v, depth=depth-1) for (k, v) in val.items()}
+        return {k:eval_(ctx, v, depth=depth-1) for (k, v) in val.items()}
+    if callable(val):
+        return val(ctx)
     return val
 
 ### Currying support
@@ -198,7 +183,7 @@ def curry(step_fn: Callable[Concatenate[D, P], any],
         name = step_fn.__name__
     def step(data: D):
         nonlocal args, kwargs
-        args = [eval_(a) for a in args]
+        args = [eval_(data, a) for a in args]
         value = step_fn(data, *args, **kwargs)
         if isinstance(value, AbstractVariable):
             raise TypeError(f"Pipeline variable {value.name} being returned.")
@@ -218,7 +203,7 @@ def pipeline(*steps: list[Step[D]], name: Optional[str] = None) -> Step[D]:
         result = None
         for fun in steps:
             result = fun(data)
-        return eval_(result)
+        return eval_(data, result)
     run_pipeline.__name__ = name
     return run_pipeline
 
@@ -265,8 +250,9 @@ def and_(*conditions: list[Condition[D]], name: Optional[str] = None) -> Conditi
 
 def if_(
     cond_: Condition[D],
-    then_: Step[D],
-    else_: Optional[Step[D]] = None,
+    then_: Optional[Union[Step[D],list[Step[D]]]],
+    else_: Optional[Union[Step[D], list[Step[D]]]] = None,
+    /,
     name: Optional[str] = None
 ) -> Step[D]:
     "Evaluate cond_. If true, call then_, otherwise else_. If no else_, return None"
@@ -276,8 +262,14 @@ def if_(
         else:
             name = f"{cond_.__name__}?{then_.__name__}:{else_.__name__}"
 
+    if isinstance(then_, list):
+        then_ = pipeline(*then_)
+    if isinstance(else_, list):
+        else_ = pipeline(*else_)
     def step(data: D):
         if cond_(data):
+            if then_ is None:
+                return None
             return then_(data)
         elif else_ is not None:
             return else_(data)
@@ -287,6 +279,17 @@ def if_(
     return step
 
 ### Utility Steps
+
+@stepfn
+def apply(ctx: D, expr: Callable[P, V], *args: P.args, **kwargs: P.kwargs) -> V:
+    """A step that applies a function to the supplied arguments and returns the values.
+    This is a stepfn, so pipeline variables can be supplied as arguments and be
+    evaluated before calling the function.
+
+    It's a StepFn, so it returns a Step that can be used anywhere steps (or conditions)
+    are allowed.
+    """
+    return expr(ctx, *args, **kwargs)
 
 @stepfn
 def list_(data: D, *args):

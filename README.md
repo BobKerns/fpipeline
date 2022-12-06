@@ -190,6 +190,10 @@ attribute variables in a single statement:
     a, b = vars.attribute('a', 'b')
 ```
 
+#### _method_ `VariableContext.pipeline`(`*`_steps_)
+
+Creates and runs pipeline in this context.
+
 ### _class_ `Variable`
 
 Represents a place to store and retrieve values between steps.
@@ -220,6 +224,18 @@ It is also the name of the field or key in the context.
 
 Store the result of _step_ into the _variable_.
 
+### _function `eval_`(_var_)
+
+> _\[Advanced]_
+
+If _var_ is any type of [pipeline variable](#pipeline-variables), its value is returned.
+
+If _var_ is a container type (`list`, `tuple`, `namedtuple`, or _dict_), a copy is returned with the variables replaced with
+their values.
+
+In most cases, this will be called for you
+at appropriate points.
+
 ## Conditional execution
 
 A pipeline that executes every step on every input would severely limit flexibility.
@@ -236,13 +252,17 @@ interface.
 
 ### _`@stepfn`_ `if_`(_cond_, _then_, _else_)
 
-_cond_ is a `Condition`, which is like a `Step` except the return value is a `bool`. It should be defined using the
+_cond_ is a `Condition`, which is like a `Step` except
+the return value is a `bool`. It should be defined using the
 `@conditionfn` decorator in the same way as
 `@stepfn` is used for step functions.
 
 _then_ and _else_ are steps (or pipelines),
 executed according to the value of _cond_.
 They may be omitted or supplied as None.
+
+If _then_ or _else_ are lists, they will be treated
+implicitly as a pipeline.
 
 ### _`@condfn`_ `not_`(_cond_)
 
@@ -259,3 +279,22 @@ and `True` otherwise.
 `or_` returns a new `Condition` that returns
 `True` if any of its arguements return `True`,
 and `False` otherwise.
+
+## Utility Steps
+
+### `@stepfn` `apply`(_fn_, `*`_args_, `**`_kwargs_)
+
+Calls an an arbitrary function on the context,
+plus any additional arguments supplied. Variables and steps will be replaced by their values.
+
+### `@stepfn` `list_`(`*`_values_)
+
+Return a list of values. Steps and variables will be evaluated.
+
+### `@stepfn` `tuple_`(`*`_values_)
+
+Return a tuple of values. Steps and variables will be evalaued.
+
+### `@stepfn` `dict_`(`**` _values_)
+
+Return a dict from the supplied keyword arguments. Steps and variables will be evaluated.
