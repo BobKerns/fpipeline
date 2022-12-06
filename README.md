@@ -196,7 +196,7 @@ Represents a place to store and retrieve values between steps.
 
 #### _attribute_ `Variable.value`
 
-The value of a [`Variable`](#class-variable). Not usually referenced directly; rather the variable is passed to step functions, or assigned with the [`store`](#function-store-variable-step) step function.
+The value of a [`Variable`](#class-variable). Not usually referenced directly; rather the variable is passed to step functions, or assigned with the [`store`](#function-storevariable-step) step function.
 
 #### _attribute_ `Variable.name`
 
@@ -208,7 +208,7 @@ A pipeline variable that access the context. The name names the field or key to 
 
 #### _attribute_ `Attribute.value`
 
-The value of a [`Attribute`](#class-variable). Not usually referenced directly; rather the variable is passed to step functions, or assigned with the [`store`](#function-store-variable-step) step function.
+The value of a [`Attribute`](#class-variable). Not usually referenced directly; rather the variable is passed to step functions, or assigned with the [`store`](#function-storevariable-step) step function.
 
 #### _attribute_ `Attribute.name`
 
