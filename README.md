@@ -282,6 +282,11 @@ and `False` otherwise.
 
 ## Utility Steps
 
+### `@Stepfn` `pipeline`(`*`_steps_)
+
+Create a pipeline—a step that executes _steps_ in order, and returns
+the value returned by the last.
+
 ### `@stepfn` `apply`(_fn_, `*`_args_, `**`_kwargs_)
 
 Calls an an arbitrary function on the context,
