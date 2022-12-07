@@ -46,6 +46,7 @@ class Test:
     """One test case"""
     name: str
     result: any
+    handle_exceptions: bool = True
     negated: bool = False
     # Errors propagate
     error: bool = False
@@ -58,12 +59,15 @@ class Test:
             TEST_REPORTER.error(self.name, self.result)
             return
         success: bool = False
-        try:
+        if self.handle_exceptions:
+            try:
+                success = bool(pred(self.result, value)) ^ self.negated
+            except Exception as ex: # pylint: disable=broad-except
+                self.reported = True
+                TEST_REPORTER.error(self.name, ex)
+                return
+        else:
             success = bool(pred(self.result, value)) ^ self.negated
-        except Exception as ex: # pylint: disable=broad-except
-            self.reported = True
-            TEST_REPORTER.error(self.name, ex)
-            return
         if success:
             TEST_REPORTER.success(self.name, self.result)
         else:
@@ -84,12 +88,19 @@ class Test:
     @property
     def negate(self):
         """Negate the test"""
-        return Test(self.name, self.result, negated=not self.negated, error=self.error, reported=self.reported)
+        return Test(self.name, self.result,
+                    negated=not self.negated,
+                    error=self.error,
+                    reported=self.reported,
+                    handle_exceptions = self.handle_exceptions)
     @property
     def exec(self):
-        """Execute the result value as a function"""
+        """Execute the result value as a function of no arguments"""
         if self.error:
             return self
+        if not self.handle_exceptions:
+            return Test(self.name, cast(Callable, self.result)(),
+                        handle_exceptions=False)
         try:
             return Test(self.name, cast(Callable, self.result)())
         except Exception as ex: # pylint: disable=broad-except
@@ -98,6 +109,12 @@ class Test:
         """Apply the fresult to the supplied arguments and return the result"""
         if self.error:
             return self
+        if not self.handle_exceptions:
+            return Test(
+                self.name,
+                cast(Callable[P, V], self.result)(*args, **kwargs),
+                handle_exceptions=False
+            )
         try:
             return Test(
                 self.name,
@@ -109,8 +126,15 @@ class Test:
         """Call the supplied function and substitute the result."""
         if self.error:
             return self
+        handle = self.handle_exceptions
+        if not self.handle_exceptions:
+            return Test(self.name, fnctn(self.result, *args, **kwargs),
+                        negated=self.negated,
+                        handle_exceptions=handle)
         try:
-            return Test(self.name, fnctn(self.result, *args, **kwargs), negated=self.negated)
+            return Test(self.name, fnctn(self.result, *args, **kwargs),
+                        negated=self.negated,
+                        handle_exceptions=self.handle_exceptions)
         except Exception as ex: # pylint: disable=broad-except
             return Test(self.name, ex, error=True)
     def is_exception(self, ex=Exception):
@@ -123,10 +147,15 @@ class Test:
         """Extract the attribute"""
         if self.error:
             return self
-        try:
+        def read_attr():
+            handle = self.handle_exceptions
             if isinstance(self.result, dict):
-                return Test(self.name, self.result[name], negated=self.negated)
-            return Test(self.name, getattr(self.result, name), negated=self.negated)
+                return Test(self.name, self.result[name], negated=self.negated, handle_exceptions=handle)
+            return Test(self.name, getattr(self.result, name), negated=self.negated, handle_exceptions=handle)
+        if not self.handle_exceptions:
+            return read_attr()
+        try:
+            return read_attr()
         except Exception as ex:
             return Test(self.name, ex, error=True)
     @property

@@ -224,14 +224,15 @@ It is also the name of the field or key in the context.
 
 Store the result of _step_ into the _variable_.
 
-### _function `eval_`(_var_)
+### _function_ `eval_vars`(_var_, _depth_=10)
 
 > _\[Advanced]_
 
 If _var_ is any type of [pipeline variable](#pipeline-variables), its value is returned.
 
-If _var_ is a container type (`list`, `tuple`, `namedtuple`, or _dict_), a copy is returned with the variables replaced with
-their values.
+If _var_ is a container type (`list`, `tuple`, `namedtuple`, `dict`, or `set`),
+a copy is returned with the variables replaced with their values.
+This is performed to _depth_ levels.
 
 In most cases, this will be called for you
 at appropriate points.
@@ -300,6 +301,10 @@ Return a list of values. Steps and variables will be evaluated.
 
 Return a tuple of values. Steps and variables will be evalaued.
 
-### `@stepfn` `dict_`(`**` _values_)
+### `@stepfn` `dict_`(`**`_values_)
 
 Return a dict from the supplied keyword arguments. Steps and variables will be evaluated.
+
+### `@stepfn` `set_`(`**`_values_)
+
+Return a set from the supplied keyword arguments. Steps and variables will be evaluated.

@@ -1,5 +1,6 @@
 """TestReporter for use in notbooks"""
 
+from itertools import zip_longest
 from IPython.display import display
 from tester import TestReporter
 
@@ -28,7 +29,7 @@ class NotebookTestReporter(TestReporter):
             f_count += 1
         elif type == 2:
             e_count += 1
-        self.results[name] = (type, html)
+        self.results[name] = (type, name, html)
         display({"text/html": html}, raw=True)
         return (s_count, f_count, e_count)
 
@@ -55,19 +56,14 @@ class NotebookTestReporter(TestReporter):
             str(result)
         ))
 
-    def report(self):
-        results = list(map(lambda i: i[1], self.results.values()))
-        l = int((len(results) + 2)/ 3)
-        m = int((2 * len(results) + 2)/ 3)
-        left = results[0:l]
-        mid = results[l:m]
-        right = results[m:]
+    def report(self, /, columns=3):
+        results = list(self.results.values())
         def mkrow(p)-> str:
-            a, b, c = p
             def cell(content):
-                return f"<td style='text-align:left'>{content}</td>"
-            return f"<tr>{cell(a)}{cell(b)}{cell(c)}</tr>"
-        rows = "\n".join(map(mkrow, zip(left, (*mid, "—"), (*right, "—"))))
+                _, name, text = content
+                return f"<td style='text-align:left'>{text}</td>"
+            return f"<tr>{''.join(map(cell, p))}</tr>"
+        rows = "\n".join(map(mkrow, zip_longest(*[iter(results)]*columns, fillvalue=(None, None, '—'))))
         table = f"<table>{rows}</table>"
         summary = f"{self.successes} successes, {self.failures} failures, {self.errors} errors"
         display({'text/html': f"{table}<br>{summary}"}, raw=True)

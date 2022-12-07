@@ -56,6 +56,11 @@ class Variable(AbstractVariable[T, V]):
             return f"<{self.name}={repr(self.value)}>"
         else:
             return f"<{self.name}=???>"
+    # Pipeline variables are identity-hashed.
+    def __hash__(self):
+        return id(self)
+    def __eq__(self, other):
+        return self is other
 
 @dataclass
 class Attribute(AbstractVariable[T, V]):
@@ -69,7 +74,7 @@ class Attribute(AbstractVariable[T, V]):
         return getattr(self.target, self.name)
 
     def __set(self, value: V):
-        value = eval_(self.target, value)
+        value = eval_vars(self.target, value)
         if isinstance(self.target, dict):
             self.target[self.name] = value
         else:
@@ -92,20 +97,26 @@ class Attribute(AbstractVariable[T, V]):
         else:
             return f'@<####.{self.name}>'
 
+    def __hash__(self):
+        return id(self)
+
+    def __eq__(self, other):
+        return self is other
+
 @dataclass
 class VariableContext(Generic[D]):
     """Context for pipeline variables"""
     target: D
-    variables: dict[str, AbstractVariable[D]] = field(default_factory=dict)
+    _variables: dict[str, AbstractVariable[D]] = field(default_factory=dict)
     closed: bool = False
 
     def variable(self, *names: list[str]) -> Variable[D]:
         """Obtain one or more variables"""
         def find(name):
-            if not name in self.variables:
+            if not name in self._variables:
                 var = Variable(name)
-                self.variables[name] = var
-            return self.variables[name]
+                self._variables[name] = var
+            return self._variables[name]
         if len(names) == 1:
             return find(names[0])
         return [*(find(name) for name in names)]
@@ -113,10 +124,10 @@ class VariableContext(Generic[D]):
     def attribute(self, *names: list[str]) -> Attribute[D]:
         """Obtain one or more attribute references"""
         def find(name):
-            if not name in self.variables:
+            if not name in self._variables:
                 var = Attribute(self.target, name)
-                self.variables[name] = var
-            return self.variables[name]
+                self._variables[name] = var
+            return self._variables[name]
         if len(names) == 1:
             return find(names[0])
         return [*(find(name) for name in names)]
@@ -127,10 +138,10 @@ class VariableContext(Generic[D]):
 
     def close(self):
         """On closing the context, make using the variables an error."""
-        for (_, var) in self.variables.items():
+        for (_, var) in self._variables.items():
             if hasattr(var, 'value'):
                 delattr(var, 'value')  # future references to .value will error.
-        self.variables.clear()
+        self._variables.clear()
         self.closed = True     # Future uses of this context will error.
 
 # Would be a @stepfn, but we have to be able to receive the Variable unchanged.
@@ -138,7 +149,7 @@ class VariableContext(Generic[D]):
 def store(var: AbstractVariable[D, V], step:Step[any, V]) -> V:
     """Store the result of the step in the supplied variable"""
     def store_(data: D):
-        var.value = eval_(data, step(data))
+        var.value = eval_vars(data, step(data))
         return var.value
     return store_
 
@@ -151,22 +162,26 @@ def variables(target: D):
     finally:
         vctx.close()
 
-def eval_(ctx: D, val: Union[AbstractVariable, any], /, depth=10):
+def eval_vars(ctx: D, val: Union[AbstractVariable, any], /, depth=10):
     """Evaluate a pipeline variable, or any list, tuple, or dict that may contain them,
     up to _depth_ (default 10) depth"""
     if isinstance(val, AbstractVariable):
-        return eval_(ctx, val.value, depth=depth-1)
+        return eval_vars(ctx, val.value, depth=depth-1)
     if depth == 0:
         return val
     if isinstance(val, list):
-        return [eval_(ctx, v, depth=depth-1) for v in val]
+        return [eval_vars(ctx, v, depth=depth-1) for v in val]
     t = type(val)
     if hasattr(t, '_make'):
-        return t._make((eval_(ctx, v, depth=depth-1) for v in val))
+        return t._make((eval_vars(ctx, v, depth=depth-1) for v in val))
     if isinstance(val, tuple):
-        return tuple((eval_(ctx, v, depth=depth-1) for v in val))
+        return tuple((eval_vars(ctx, v, depth=depth-1) for v in val))
     if isinstance(val, dict):
-        return {k:eval_(ctx, v, depth=depth-1) for (k, v) in val.items()}
+        return {k:eval_vars(ctx, v, depth=depth-1) for (k, v) in val.items()}
+    if isinstance(val, frozenset):
+        return frozenset((eval_vars(ctx, v, depth=depth-1) for v in val))
+    if isinstance(val, set):
+        return {eval_vars(ctx, v, depth=depth-1) for v in val}
     if callable(val):
         return val(ctx)
     return val
@@ -183,7 +198,7 @@ def curry(step_fn: Callable[Concatenate[D, P], any],
         name = step_fn.__name__
     def step(data: D):
         nonlocal args, kwargs
-        args = [eval_(data, a) for a in args]
+        args = [eval_vars(data, a) for a in args]
         value = step_fn(data, *args, **kwargs)
         if isinstance(value, AbstractVariable):
             raise TypeError(f"Pipeline variable {value.name} being returned.")
@@ -203,7 +218,7 @@ def pipeline(*steps: list[Step[D]], name: Optional[str] = None) -> Step[D]:
         result = None
         for fun in steps:
             result = fun(data)
-        return eval_(data, result)
+        return eval_vars(data, result)
     run_pipeline.__name__ = name
     return run_pipeline
 
@@ -293,12 +308,16 @@ def apply(ctx: D, expr: Callable[P, V], *args: P.args, **kwargs: P.kwargs) -> V:
 
 @stepfn
 def list_(data: D, *args):
-    return list(map(eval_, args))
+    return list(map(eval_vars, args))
 
 @stepfn
 def dict_(data: D, **kwargs):
-    return {k:eval_(v) for (k, v) in kwargs}
+    return {k:eval_vars(v) for (k, v) in kwargs}
 
 @stepfn
 def tuple_(data: D, *args):
-    return tuple(map(eval_, args))
+    return tuple(map(eval_vars, args))
+
+@stepfn
+def set_(data: D, *args):
+    return set(map(eval_vars, args))
