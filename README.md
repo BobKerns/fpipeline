@@ -5,6 +5,11 @@ Simple but flexible python pipelines based on function composition.
 Build your workflow step by step, then flexibly combine the steps to make a bigger step. Conditional
 execution and branching are also supported.
 
+> * Author: Bob Kerns
+> * License: [MIT](LIVENSE)
+> * Bugs> <https://github.com/BobKerns/fpipeline/issues>
+> * [Examples](doc/examples/examples.md)
+
 Organizing a data application as a pipeline brings many benefits:
 
 * By naming each top-level operation, a degree of natural self-documentation is provided.
@@ -308,3 +313,15 @@ Return a dict from the supplied keyword arguments. Steps and variables will be e
 ### `@stepfn` `set_`(`**`_values_)
 
 Return a set from the supplied keyword arguments. Steps and variables will be evaluated.
+
+
+
+## Development
+
+[Pull requests](https://github.com/BobKerns/fpipeline/pulls) are welcome, as are
+[bug reports, feature requests, documentation requests or fixes)[https://github.com/BobKerns/fpipeline/issues]
+
+Pull requests do not need to be rebased or linear, but you should at least pull from the latest
+`main` branch and resolve conflicts.
+
+You should pass all test in the [test notebook](./test/test.ipynb), and add any new ones to the test notebook.
