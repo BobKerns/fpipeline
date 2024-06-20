@@ -8,5 +8,22 @@
     "python.linting.pylintPath": "test",
     "markdownlint.config": {
         "MD033": false
-    }
+    },
+    "cSpell.words": [
+        "fpipeline",
+        "stepfn",
+        "conditionfn",
+        "co_argcount",
+        "nval",
+        "tstep",
+        "vfstep",
+        "vtuple",
+        "vdict",
+        "vset",
+        "vfset",
+        "vfdict",
+        "ndict",
+        "lcond",
+        "vctx"
+    ]
 }

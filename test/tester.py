@@ -28,11 +28,11 @@ class DefaultTestReporter(TestReporter):
 
     def failure(self, name: str, result: any):
         """Handle test failure"""
-        print(f"❌: {name}")
+        print(f"❌: {name}: {result}")
 
     def error(self, name: str, result: any):
         """Handle errors while testing"""
-        print(f"❌❌❌; {name} {result}")
+        print(f"❌❌❌; {name} Error: {result}")
 
 TEST_REPORTER = DefaultTestReporter()
 
@@ -51,7 +51,9 @@ class Test:
     # Errors propagate
     error: bool = False
     reported: bool = False
-    def _check(self, pred: Callable[[any, any], bool], value: any, /, allow_error=False):
+    def _check(self, pred: Callable[[any, any], bool], value: any, /, allow_error=False,
+            reporter=lambda v: v,
+            negated=lambda v: v):
         if self.reported:
             return # We've already reported the error.
         if self.error and not allow_error:
@@ -71,20 +73,29 @@ class Test:
         if success:
             TEST_REPORTER.success(self.name, self.result)
         else:
-            TEST_REPORTER.failure(self.name, self.result)
+            r = reporter if self.negated else negated
+            TEST_REPORTER.failure(self.name, r(self.result))
         self.reported = True
     def equals(self, value: any):
         """Test if the result is equal to the supplied value"""
-        self._check(lambda a, b: a == b, value)
+        self._check(lambda a, b: a == b, value,
+                    reporter=lambda v: f"{v} !== {value}",
+                    negated=lambda v: f"{v} === {value}")
     def is_same(self, value: any):
         """Test if the result is the exact same object as the supplied value"""
-        self._check(lambda a, b: a is b, value)
+        self._check(lambda a, b: a is b, value,
+                    reporter=lambda v: f"{v} is not {value}",
+                    negated=lambda v: f"{v} is {value}")
     def is_true(self):
         """Test if the result is true"""
-        self._check(lambda a, b: not not a, True) # pylint: disable=unneeded-not
+        self._check(lambda a, b: not not a, True, # pylint: disable=unneeded-not
+                    reporter=lambda v: f"{v} is false",
+                    negated=lambda v: f"{v} is true")
     def is_false(self):
         """test if the result is false"""
-        self._check(lambda a, b: not a, False)
+        self._check(lambda a, b: not a, False,
+                reporter=lambda v: f"{v} is true",
+                negated=lambda v: f"{v} is false")
     @property
     def negate(self):
         """Negate the test"""
@@ -139,10 +150,14 @@ class Test:
             return Test(self.name, ex, error=True)
     def is_exception(self, ex=Exception):
         """Test if the result is an exception"""
-        self._check(isinstance, ex, allow_error=True)
+        self._check(isinstance, ex, allow_error=True,
+                    reporter=lambda v: f"{v} is not an exception",
+                    negated=lambda v: f"{v} is an exception")
     def isinstance(self, cls):
         """Test if the result is an instance of the specified class"""
-        self._check(isinstance, cls)
+        self._check(isinstance, cls,
+                    reporter=lambda v: f"{v} is not an instance of {cls}",
+                    negated=lambda v: f"{v} is an instance of {cls}")
     def attribute(self, name: str):
         """Extract the attribute"""
         if self.error:

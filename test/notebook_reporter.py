@@ -16,7 +16,7 @@ class NotebookTestReporter(TestReporter):
         html = f"<span style='{style}'>{token} {name}: {msg}</span>"
         s_count, f_count, e_count = (0, 0, 0)
         if name in self.results:
-            (old_type, old_heml) = self.results[name]
+            (old_type, old_heml, old_html) = self.results[name]
             if old_type == 0:
                 s_count = -1
             elif old_type == 1:
@@ -42,9 +42,9 @@ class NotebookTestReporter(TestReporter):
         """Handle test success"""
         self.update_count(*self._display(0, "color:green", '✅', name, 'OK'))
 
-    def failure(self, name: str, _: any):
+    def failure(self, name: str, reason: any):
         """Handle test failure"""
-        self.update_count(*self._display(1, 'color:red', '❌', name, 'Failed'))
+        self.update_count(*self._display(1, 'color:red', '❌', name, f'Failed; {reason}'))
 
     def error(self, name: str, result: any):
         """Handle errors while testing"""

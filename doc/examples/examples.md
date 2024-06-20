@@ -1,5 +1,4 @@
 # `fpipeline` Examples
 
-## [Grid](grid.ipynb)
+## [Grid](grid/grid.ipynb)
 
-3
