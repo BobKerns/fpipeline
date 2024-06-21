@@ -10,20 +10,21 @@
         "MD033": false
     },
     "cSpell.words": [
-        "fpipeline",
-        "stepfn",
-        "conditionfn",
+        "argcount",
         "co_argcount",
-        "nval",
-        "tstep",
-        "vfstep",
-        "vtuple",
-        "vdict",
-        "vset",
-        "vfset",
-        "vfdict",
-        "ndict",
+        "conditionfn",
+        "fpipeline",
         "lcond",
-        "vctx"
+        "ndict",
+        "nval",
+        "stepfn",
+        "tstep",
+        "vctx",
+        "vdict",
+        "vfdict",
+        "vfset",
+        "vfstep",
+        "vset",
+        "vtuple"
     ]
 }
