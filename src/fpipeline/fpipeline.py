@@ -219,12 +219,12 @@ class Attribute[C,V](AbstractVariable[C, V]):
 
 
     @overload
-    def __init__(self, name: str):
+    def __init__(self, ctx: C, name: str):
         ...
     @overload
-    def __init__(self, name: str, value: V):
+    def __init__(self, ctx: C, name: str, value: V):
         ...
-    def __init__(self, name: str, *values):
+    def __init__(self, ctx: C, name: str, *values):
         """
         Parameters
         ----------
@@ -233,6 +233,7 @@ class Attribute[C,V](AbstractVariable[C, V]):
         value : `V`, optional
             The initial value of the variable
         """
+        self.target = ctx
         self.name = name
         if values:
             self.value = values[0]
@@ -332,6 +333,36 @@ class VariableContext[C]:
             return cast(Variable[C,V], find(names[0]))
         return tuple((cast(Variable[C,V], find(name)) for name in names))
     
+    def variables[V](self, name1: str,
+                    *names: str,
+                    _cls: type[V]=type[object],
+                    **kwargs: V,
+                    ) -> tuple[Variable[C,V],...]:
+        """
+        Obtain one or more variables.
+
+        Parameters
+        ----------
+            names : `str`
+                The names of uninitialized variables to obtain
+            **kwargs : `V`
+                The names and values of initialized variables
+        """
+        names = (name1, *names)
+        def find(name):
+            if not name in self._variables:
+                var = Variable(name)
+                self._variables[name] = var
+            return self._variables[name]
+        kvars: tuple[Variable[C,V],...] = ()
+        vars: tuple[Variable[C,V],...] = tuple(
+            cast(Variable[C,V], find(name))
+            for name in names
+        )
+        if len(kwargs) > 0:
+            kvars =({k:Variable(k,v) for k,v in kwargs.items()},)
+        return vars + kvars
+
     @overload
     def attribute[V](self, name1: str, *, cls: type[V]=type[object]) -> Attribute[C,V]:
         ...
@@ -370,6 +401,41 @@ class VariableContext[C]:
             return cast(Attribute[C,V], find(names[0]))
         return tuple(cast(Attribute[C,V],find(name)) for name in names)
 
+    def attributes[V](self, name1: str,
+                        *names: str,
+                        _cls: type[V]=type[object],
+                        **kwargs: V,
+                        ) -> tuple[Variable[C,V],...]:
+        """
+        Obtain one or more attribute references.
+
+        An attribute reference is a variable that is backed by an attribute on the context object.
+
+        Attribute references created without initialization will have the pre-existing values
+        in the context, if any.
+
+        Parameters
+        ----------
+            names : str
+                The names of uninitialized attribute references to obtain
+            **kwargs : V
+                The names and values of initialized attribute references
+        """
+        names = (name1, *names)
+        def find(name):
+            if not name in self._variables:
+                var = Variable(name)
+                self._variables[name] = var
+            return self._variables[name]
+        kvars: tuple[Variable[C,V],...] = ()
+        vars: tuple[Variable[C,V],...] = tuple(
+            cast(Variable[C,V], find(name))
+            for name in names
+        )
+        if len(kwargs) > 0:
+            kvars =({k:Variable(k,v) for k,v in kwargs.items()},)
+        return vars + kvars
+
     def pipeline[V](self, *steps: Step[C,V]) -> Pipeline[C,V]:
         """
         create and run a pipeline in this variable context.
@@ -391,15 +457,46 @@ class VariableContext[C]:
         self._variables.clear()
         self.closed = True     # Future uses of this context will error.
 
+class PipelineContext(VariableContext[Any]):
+    """
+    A context object for pipeline variables.
+
+    This is a `VariableObject` that is also a pipeline context object.
+    It is a general-purpose context object for use in a pipeline,
+    and also acts as a `VariableContext` for pipeline variables.
+    """
+    def __init__(self, **initial_variables: Any):
+        super().__init__(self)
+        self.target = self
+        forbidden = vars(self)
+        for (k, v) in initial_variables.items():
+            if k in forbidden:
+                raise ValueError(f"Variable name {k} is reserved.")
+            setattr(self, k, v)
+
 # Would be a @stepfn, but we have to be able to receive the Variable unchanged.
 # A @stepfn receives pipeline variable values, never variables
-def store[C,V](var: AbstractVariable[C, V], step:Step[C, V]) -> Step[C,V]:
+def store[C,V](var: AbstractVariable[C, V], step:Step[C, V]|Any) -> Step[C,V]:
     """
-    Store the result of the step in the supplied variable
+    Store the result of the step in the supplied variable.
+
+    Rather than a step as a 2nd argument, you can supply a literal value to store,
+    so long as that value is not a callable.
+
+    Parameters
+    ----------
+        var : `AbstractVariable[C, V]`
+            The variable to store the result in
+        step : `Step[C,V] | Any`
+            The step to execute, or a literal value to store
     """
     @wraps(store)
     def store_(ctx: C):
-        var.value = cast(V, eval_vars(ctx, step(ctx)))
+        if callable(step):
+            value = step(ctx)
+        else:
+            value = step
+        var.value = cast(V, eval_vars(ctx, value))
         return var.value
     return cast(Step[C,V], store_)
 
@@ -414,6 +511,22 @@ def variables[C](target: C) -> Generator[VariableContext[C], None, None]:
             The context object
     """
     vctx = VariableContext(target)
+    try:
+        yield vctx
+    finally:
+        vctx.close()
+
+@contextmanager
+def context(**initial_variables) -> Generator[PipelineContext, None, None]:
+    """
+    Returns a `PipelineContext`, for use in a `with` statement.
+
+    Parameters
+    ----------
+        **initial_variables : Any
+            Initial parameters to define in this context.
+    """
+    vctx = PipelineContext(**initial_variables)
     try:
         yield vctx
     finally:
