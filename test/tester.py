@@ -1,4 +1,6 @@
-""" Simple Test Framework for notebook-based tests."""
+"""
+Simple Test Framework for notebook-based tests.
+"""
 
 from dataclasses import dataclass
 from typing import Callable, cast, TypeVar, ParamSpec, Concatenate
@@ -9,13 +11,26 @@ T = ParamSpec('T')
 V = TypeVar('V')
 
 class TestReporter(ABC):
-    """Abstract base class for reporting test results"""
+    """
+    Abstract base class for reporting test results
+    """
     @abstractmethod
     def success(self, name: str, result: any):
-        """Handle test success"""
+        """
+        Handle test success
+
+        Parameters
+        ----------
+            name : str
+                The name of the test
+            result : any
+                The result of the test
+        """
     @abstractmethod
     def failure(self, name: str, result: any):
-        """Handle test failure"""
+        """
+        Handle test failure
+        """
     @abstractmethod
     def error(self, name:str, result: any):
         """Handle errors while testing"""
@@ -79,8 +94,8 @@ class Test:
     def equals(self, value: any):
         """Test if the result is equal to the supplied value"""
         self._check(lambda a, b: a == b, value,
-                    reporter=lambda v: f"{v} !== {value}",
-                    negated=lambda v: f"{v} === {value}")
+                    reporter=lambda v: f"{v} != {value}",
+                    negated=lambda v: f"{v} == {value}")
     def is_same(self, value: any):
         """Test if the result is the exact same object as the supplied value"""
         self._check(lambda a, b: a is b, value,
