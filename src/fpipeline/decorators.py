@@ -1,6 +1,5 @@
-"""Functional Pipeline. A simple pipeline facility built on function composition.
-
-Our composition operator is `pipeline`.
+"""
+Decorators for fpipeline step and condition functions.
 """
 
 from typing import (
