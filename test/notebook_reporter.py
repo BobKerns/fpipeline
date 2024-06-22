@@ -1,4 +1,8 @@
-"""TestReporter for use in notbooks"""
+"""
+TestReporter for use in notebooks
+
+
+"""
 
 from itertools import zip_longest
 from IPython.display import display
