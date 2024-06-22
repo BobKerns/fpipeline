@@ -94,8 +94,8 @@ class Test:
     def equals(self, value: any):
         """Test if the result is equal to the supplied value"""
         self._check(lambda a, b: a == b, value,
-                    reporter=lambda v: f"{v} !== {value}",
-                    negated=lambda v: f"{v} === {value}")
+                    reporter=lambda v: f"{v} != {value}",
+                    negated=lambda v: f"{v} == {value}")
     def is_same(self, value: any):
         """Test if the result is the exact same object as the supplied value"""
         self._check(lambda a, b: a is b, value,
