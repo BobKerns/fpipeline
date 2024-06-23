@@ -6,6 +6,7 @@ from collections import namedtuple
 
 from fpipeline import (
     stepfn, conditionfn,
+    step_, condition_,
     pipeline,variables, context,
     store, eval_vars,
     if_, not_, and_, or_,
@@ -27,6 +28,11 @@ def tstep(data: Ctx, *args, **kwargs):
     data.trace.append(d)
     return data
 
+@step_
+def tstep_(data: Ctx, *args, **kwargs):
+    d = (*args, {**kwargs})
+    data.trace.append(d)
+
 def get_trace(data: Ctx):
     return data.trace
 
@@ -40,6 +46,10 @@ def fail(_: Ctx):
 
 @conditionfn
 def has_value(data: Ctx, value):
+    return data.value == value
+
+@condition_
+def has_value_(data: Ctx, value):
     return data.value == value
 
 @conditionfn
@@ -70,16 +80,17 @@ class TestFPipeline(TestCase):
         data = Ctx()
         self.assertFalse(has_value(7)(data))
 
-    @skip("Python bug makes @wrap unreliable")
     def test_stepfn_name(self):
-        import sys
-        self.assertEqual(tstep.__code__.co_name, "step_fn")
         self.assertEqual(tstep.__name__, 'tstep')
+
+    def test_step__name(self):
+        self.assertEqual(tstep_.__name__, 'tstep_')
     
-    @skip("Python bug makes @wrap unreliable")
     def test_conditionfn_name(self):
-        self.assertEqual(has_value.__code__.co_name, "condition_fn")
-        self.assertEqual(has_value.__name__, 'has_value')   
+        self.assertEqual(has_value.__name__, 'has_value')  
+    
+    def test_condition_name(self):
+        self.assertEqual(has_value_.__name__, 'has_value_')   
 
     def test_simple_pipeline(self):
         ctx = Ctx()
@@ -194,6 +205,7 @@ class TestFPipeline(TestCase):
         self.assertFalse(p(Ctx()))
 
     def test_close_vars(self):
+        @step_(_final=True)
         def f0(ctx: Ctx):
             with variables(ctx) as vars:
                 return vars
