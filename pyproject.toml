@@ -4,11 +4,13 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "fpipeline"
-version = "1.4.0"
 authors = [
   { name="BobKerns", email="rwk@acm.org" },
 ]
-description = "Functional Pipeline. A simple yet flexible pipeline package based on function composition."
+dynamic = [
+    "version",
+    "description"
+]
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
@@ -16,6 +18,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+
+[project.scripts]
+
 
 [project.urls]
 "Homepage" = "https://github.com/bobkerns/fpipeline"
