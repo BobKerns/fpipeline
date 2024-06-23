@@ -3,7 +3,9 @@ Core types
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Sequence
+from typing import (
+    Callable, Optional, Sequence, Protocol, runtime_checkable,
+)
 
 class Step[C,V](ABC):
     """
@@ -92,3 +94,11 @@ type Value[V] = V \
     |dict[str,Arg[V]] \
     |set[Arg[V]] \
     |frozenset[Arg[V]]
+
+@runtime_checkable
+class Closeable(Protocol):
+    """An abstract class for objects implementing a close method."""
+    def close(self) -> None:
+        ...
+
+type ContextFactory[C] = Callable[[], C]
