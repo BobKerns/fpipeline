@@ -11,8 +11,9 @@ from fpipeline.steps import *
 from ._version import *
 
 FPIPELINE_ALL: list[str] = [
-    'Step', 'Condition', 'Pipeline',
-    'pipeline', 'variables', context, 'stepfn', 'conditionfn',
+    'Step', 'Condition', 'Pipeline', 'Closeable',
+    'pipeline', 'variables', 'Resource',
+    'context', 'stepfn', 'conditionfn',
     'if_', 'not_', 'and_', 'or_',
     'Variable', 'Attribute', 'VariableContext', 'PipelineContext',
     'store', 'eval_vars',

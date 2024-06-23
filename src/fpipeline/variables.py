@@ -14,6 +14,9 @@ If tied to a context object, they may support a context manager, allowing usage 
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, cast, overload
+from contextlib import AbstractContextManager
+
+from fpipeline.types import Closeable
 
 class AbstractVariable[C,V]:
     """
@@ -157,3 +160,54 @@ class Attribute[C,V](AbstractVariable[C, V]):
 
     def __eq__(self, other):
         return self is other
+    
+from contextlib import closing
+
+class Resource[C,V: Closeable](AbstractVariable[C, V]):
+    """
+    Pipeline variable that holds a resource.
+
+    The value of a `Resource` is the value of the resource.
+    The resource can be any object
+    Setting the value sets the resource.
+
+    Type Parameters
+    ---------------
+        C: The context type
+        V: The value type
+    """
+    name: str
+    "The resource"
+
+    def __init__(self, name: str, resource: Closeable|AbstractContextManager[V]):
+        """
+        Parameters
+        ----------
+        name : `str`
+            The name of the variable
+        resource : Closeable[V]|AbstractContextManager[V]
+            The resource
+        """
+        match resource:
+            case Closeable():
+                self.resource = closing(resource)
+                value = self.resource.__enter__()
+            case AbstractContextManager():
+                self.resource = resource
+                value = self.resource.__enter__()
+            case _:
+                raise ValueError(f"Resource must be a Closeable or AbstractContextManager, not {type(resource)}")
+        super().__init__(name, value)
+
+    def __get(self):
+        return self.value
+
+    def __set(self, value: V):
+        raise AttributeError("Resource variable is read-only")
+
+    def __del(self):
+        # We leave attribute values behind after we exit scope
+        # But we drop the ability to access them
+        delattr(self, 'resource')
+
+    value = cast(V,property(__get, cast(Callable[[Any, V], None],__set), __del))

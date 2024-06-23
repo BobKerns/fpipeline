@@ -1,13 +1,12 @@
 """
+Contexts for pipeline variables.
 """
 
-from contextlib import contextmanager
 from dataclasses import dataclass, field
-from collections.abc import Generator
-from typing import Any, cast, overload
+from typing import Any, cast, overload, Optional
 
-from .types import Pipeline, Step
-from .variables import AbstractVariable, Attribute, Variable
+from fpipeline.types import Pipeline, Step
+from fpipeline.variables import AbstractVariable, Variable, Attribute, Resource
 
 @dataclass
 class VariableContext[C]:
@@ -20,20 +19,40 @@ class VariableContext[C]:
         C: The context type
     """
     target: C
+    "The context for the pipeline steps."
+    parent: Optional['VariableContext[C]'] = None
+    "The parent context, if any"
     _variables: dict[str, AbstractVariable[C, Any]] = field(default_factory=dict)
     closed: bool = False
+    "Flag indicating this context is closed and no longer valid."
 
     @overload
-    def variable[V](self, name1: str, *, cls: type[V]=type[Any]) -> Variable[C,V]:
+    def variable[V](self, name1: str, *,
+                    cls: type[V]=type[Any]
+                    ) -> Variable[C,V]:
         ...
     @overload
     def variable[V](self, name1: str, *names: str,
                       cls: type[V]=type[object]
                       ) -> tuple[Variable[C,V],...]:
         ...
+    @overload
+    def variable[V](self, name1: str, *,
+                    create: bool,
+                    cls: type[V]=type[Any]
+                    ) -> Variable[C,V] | None:
+        ...
+    @overload
+    def variable[V](self, name1: str, *names: str,
+                      create: bool,
+                      cls: type[V]=type[object]
+                      ) -> tuple[Variable[C,V],...] | None:
+        ...
     def variable[V](self, name1: str,
                     *names: str,
-                    _cls: type[V]=type[object]) -> Variable[C,V]|tuple[Variable[C,V],...]:
+                    create: bool=True,
+                    _cls: type[V]=type[object]
+                    ) -> Variable[C,V] | tuple[Variable[C,V],...] | None:
         """
         Obtain a single variable.
 
@@ -46,15 +65,24 @@ class VariableContext[C]:
         ----------
             name : str
                 The name of a single variable
+            create: bool
+                Whether to create the variable if it does not exist (default `True`)
             _cls : type[V]
                 The type of the variable, default=Any
 
         Returns
-            `Variable[C,V]` The variable
+            `Variable[C,V]` The variable, or
+            `None` if the variable does not exist and `create` is `False`.
         """
         names = (name1, *names)
         def find(name):
             if not name in self._variables:
+                if self.parent:
+                    var = self.parent.variable(name, _cls=_cls)
+                    if var:
+                        return var
+                if not create:
+                    return None
                 var = Variable(name)
                 self._variables[name] = var
             return self._variables[name]
@@ -62,11 +90,27 @@ class VariableContext[C]:
             return cast(Variable[C,V], find(names[0]))
         return tuple((cast(Variable[C,V], find(name)) for name in names))
     
+    @overload
     def variables[V](self, name1: str,
                     *names: str,
                     _cls: type[V]=type[object],
                     **kwargs: V,
                     ) -> tuple[Variable[C,V],...]:
+        ...
+    @overload
+    def variables[V](self, name1: str,
+                    *names: str,
+                    create: bool,
+                    _cls: type[V]=type[object],
+                    **kwargs: V,
+                    ) -> tuple[Variable[C,V] | None,...]:
+        ...
+    def variables[V](self, name1: str,
+                    *names: str,
+                    create: bool=True,
+                    _cls: type[V]=type[object],
+                    **kwargs: V,
+                    ) -> tuple[Variable[C,V] | None,...]:
         """
         Obtain one or more variables.
 
@@ -80,6 +124,12 @@ class VariableContext[C]:
         names = (name1, *names)
         def find(name):
             if not name in self._variables:
+                if self.parent:
+                    var = self.parent.variable(name, create=False, _cls=_cls)
+                    if var:
+                        return var
+                if not create:
+                    return None
                 var = Variable(name)
                 self._variables[name] = var
             return self._variables[name]
@@ -93,15 +143,30 @@ class VariableContext[C]:
         return vars + kvars
 
     @overload
-    def attribute[V](self, name1: str, *, cls: type[V]=type[object]) -> Attribute[C,V]:
+    def attribute[V](self, name1: str, *,
+                     cls: type[V]=type[object]) -> Attribute[C,V]:
         ...
     @overload
     def attribute[V](self, name1: str, *names: str,
-                     cls: type[V]=type[object]) -> tuple[Attribute[C,V], ...]:
+                     cls: type[V]=type[object]
+                     ) -> tuple[Attribute[C,V], ...]:
+        ...
+    @overload
+    def attribute[V](self, name1: str, *,
+                     create: bool,
+                     cls: type[V]=type[object]
+                     ) -> Attribute[C,V] | None:
+        ...
+    @overload
+    def attribute[V](self, name1: str, *names: str,
+                     create: bool,
+                     cls: type[V]=type[object]
+                     ) -> tuple[Attribute[C,V], ...] | None:
         ...
     def attribute[V](self, name1: str, *names: str,
+                     create: bool=True,
                      cls: type[V]=type[object]
-                  ) -> Attribute[C,V]|tuple[Attribute[C,V], ...]:
+                  ) -> Attribute[C,V] | tuple[Attribute[C,V], ...] | None:
         """
         Obtain a single attribute reference.
 
@@ -114,7 +179,10 @@ class VariableContext[C]:
        
         Parameters
         ----------
-            name: str - the name of a single attribute  
+            name: str
+                The name of a single attribute 
+            create: bool
+                Whether to create the attribute if it does not exist (default `True`)
 
         Returns
         -------
@@ -123,6 +191,12 @@ class VariableContext[C]:
         names = (name1, *names)
         def find(name):
             if not name in self._variables:
+                if self.parent:
+                    var = self.parent.variable(name, create=False)
+                    if var:
+                        return var
+                if not create:
+                    return None
                 var = Attribute(self.target, name)
                 self._variables[name] = var
             return self._variables[name]
@@ -130,8 +204,24 @@ class VariableContext[C]:
             return cast(Attribute[C,V], find(names[0]))
         return tuple(cast(Attribute[C,V],find(name)) for name in names)
 
+    @overload
+
     def attributes[V](self, name1: str,
                         *names: str,
+                        _cls: type[V]=type[object],
+                        **kwargs: V,
+                        ) -> tuple[Variable[C,V],...]:
+        ...
+    def attributes[V](self, name1: str,
+                        *names: str,
+                        create: bool,
+                        _cls: type[V]=type[object],
+                        **kwargs: V,
+                        ) -> tuple[Variable[C,V],...] | None:
+        ...
+    def attributes[V](self, name1: str,
+                        *names: str,
+                        create: bool=True,
                         _cls: type[V]=type[object],
                         **kwargs: V,
                         ) -> tuple[Variable[C,V],...]:
@@ -147,12 +237,25 @@ class VariableContext[C]:
         ----------
             names : str
                 The names of uninitialized attribute references to obtain
+            create: bool
+                Whether to create the attribute if it does not exist (default `True`)
             **kwargs : V
                 The names and values of initialized attribute references
+
+        Returns
+        -------
+            tuple[Attribute[C,V],...]
+                The attribute references
         """
         names = (name1, *names)
         def find(name):
             if not name in self._variables:
+                if self.parent:
+                    var = self.parent.variable(name, create=False)
+                    if var:
+                        return var
+                if not create:
+                    return None
                 var = Variable(name)
                 self._variables[name] = var
             return self._variables[name]
@@ -183,6 +286,8 @@ class VariableContext[C]:
         """
         for (_, var) in self._variables.items():
             if hasattr(var, 'value'):
+                if isinstance(var, Resource):
+                    var.close()
                 delattr(var, 'value')  # future references to .value will error.
         self._variables.clear()
         self.closed = True     # Future uses of this context will error.
@@ -195,8 +300,10 @@ class PipelineContext(VariableContext[Any]):
     It is a general-purpose context object for use in a pipeline,
     and also acts as a `VariableContext` for pipeline variables.
     """
-    def __init__(self, **initial_variables: Any):
-        super().__init__(self)
+    def __init__(self,
+                 parent: Optional[VariableContext[Any]] = None,
+                 **initial_variables: Any):
+        super().__init__(self, parent=parent)
         self.target = self
         forbidden = vars(self)
         for (k, v) in initial_variables.items():

@@ -4,17 +4,19 @@ Functions for fpipeline.
 Separated to avoid circular dependencies.
 """
 
-from typing import cast, Callable, Optional, Concatenate
+from typing import Any, cast, Callable, Optional, Concatenate
 from collections.abc import Generator
 from contextlib import contextmanager
 from functools import wraps
 
-from .types import Step, Value, Arg
-from .variables import AbstractVariable
-from .contexts import VariableContext, PipelineContext
+from fpipeline.types import Step, Value, Arg, ContextFactory
+from fpipeline.variables import AbstractVariable
+from fpipeline.contexts import VariableContext, PipelineContext
 
 @contextmanager
-def variables[C](target: C) -> Generator[VariableContext[C], None, None]:
+def variables[C](target: C, *,
+                 _parent: Optional[VariableContext[C]] = None,
+                 ) -> Generator[VariableContext[C], None, None]:
     """
     Returns a `VariableContext`, for use in a `with` statement.
 
@@ -22,15 +24,18 @@ def variables[C](target: C) -> Generator[VariableContext[C], None, None]:
     ----------
         target : C
             The context object
+        _parent : Optional[VariableContext[C]]
+            The parent context, if any.
     """
-    vctx = VariableContext(target)
+    vctx = VariableContext(target, _parent)
     try:
         yield vctx
     finally:
         vctx.close()
 
 @contextmanager
-def context(**initial_variables) -> Generator[PipelineContext, None, None]:
+def context(_parent: Optional[VariableContext[Any]]=None,
+            **initial_variables) -> Generator[PipelineContext, None, None]:
     """
     Returns a `PipelineContext`, for use in a `with` statement.
 
@@ -39,7 +44,8 @@ def context(**initial_variables) -> Generator[PipelineContext, None, None]:
         **initial_variables : Any
             Initial parameters to define in this context.
     """
-    vctx = PipelineContext(**initial_variables)
+    vctx = PipelineContext(_parent=_parent,
+                           **initial_variables)
     try:
         yield vctx
     finally:
@@ -154,7 +160,9 @@ def curry[C,V,**P](step_fn: Callable[Concatenate[C, ...], V],
 
 ### Collect steps into a pipeline (itself a step)
 
-def pipeline[C,V](*steps: Step[C,V], name: Optional[str] = None) -> Step[C,V]:
+def pipeline[C,V](*steps: Step[C,V],
+                context_factory: Optional[ContextFactory[C]]=PipelineContext,
+                name: Optional[str] = None) -> Step[C,V]:
     """
     Return a new function that calls each function on the same arguments,
     returning the last return value.
@@ -163,13 +171,21 @@ def pipeline[C,V](*steps: Step[C,V], name: Optional[str] = None) -> Step[C,V]:
     ----------
         *steps : `Step[C,V]`
             The steps in the pipeline
+        context_factory : `Optional[Callable[[],C]]`
+            A factory function to create a new context if none is supplied
+        name : `Optional[str]`'
+            An optional name of the pipeline
 
     Returns
     -------
         `Step[C,V]` - the pipeline function
     """
     @wraps(steps[0] if steps else None)
-    def run_pipeline(ctx:C) -> V:
+    def run_pipeline(ctx:Optional[C]=None) -> V:
+        if ctx is None:
+            if context_factory is None:
+                raise ValueError("No context provided.")
+            ctx = context_factory()
         result = None
         for fun in steps:
             result = fun(ctx)
